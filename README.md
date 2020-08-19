@@ -1,4 +1,4 @@
-# TestCovid (Тестовое задание)
+# TestCovid
 
 
  *Coronavirus-19-api

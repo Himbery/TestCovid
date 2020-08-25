@@ -8,10 +8,13 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import io.reactivex.Observable;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
@@ -28,21 +31,26 @@ public class Model implements Contract.Model {
                 .build();
         CoronaApi api = retrofit.create(CoronaApi.class);
 
-        Call<List<CountriesModel>> call = api.call();
-        call.enqueue(new Callback<List<CountriesModel>>() {
-            @Override
-            public void onResponse(Call<List<CountriesModel>> call, Response<List<CountriesModel>> response) {
-                if (response.isSuccessful()){
-                    List<CountriesModel> countriesModels = response.body();
-                    presenter.onSuccess(countriesModels);
-                }
-            }
+        Observable<List<CountriesModel>> observable = api.call();
+        observable.subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<List<CountriesModel>>() {
+                    @Override
+                    public void onSubscribe(Disposable d) { }
 
-            @Override
-            public void onFailure(Call<List<CountriesModel>> call, Throwable t) {
-                presenter.onError(t);
-            }
-        });
+                    @Override
+                    public void onNext(List<CountriesModel> countriesModels) {
+                        presenter.onSuccess(countriesModels);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        e.printStackTrace();
+                    }
+
+                    @Override
+                    public void onComplete() { }
+                });
     }
 
     @Override
@@ -54,28 +62,36 @@ public class Model implements Contract.Model {
                 .build();
         CoronaApi api = retrofit.create(CoronaApi.class);
 
-        Call<Global> call = api.callGlobal();
-        call.enqueue(new Callback<Global>() {
-            @Override
-            public void onResponse(Call<Global> call, Response<Global> response) {
-                if (response.isSuccessful()){
-                    Global global = response.body();
-                    presenter.onSuccessG(global);
-                }
-            }
+        Observable<Global> globalObservable = api.callGlobal();
+        globalObservable.subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .debounce(2, TimeUnit.SECONDS)
+                .subscribe(new Observer<Global>() {
+                    @Override
+                    public void onSubscribe(Disposable d) { }
 
-            @Override
-            public void onFailure(Call<Global> call, Throwable t) {
-                presenter.onError(t);
-            }
-        });
+                    @Override
+                    public void onNext(Global global) {
+                        presenter.onSuccessG(global);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        e.printStackTrace();
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });
     }
 
     @Override
     public String getDateToday() {
         Date currentDate = new Date();
         DateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault());
-        String dateText = dateFormat.format(currentDate);
-        return dateText;
+
+        return dateFormat.format(currentDate);
     }
 }
